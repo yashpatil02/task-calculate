@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ✅ RESET VITE DEMO CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===============================
+   HRMS THEME (CHANGE ONLY THIS)
+================================ */
+
+:root {
+  --hrms-bg: #d5d6da;          /* page background */
+  --hrms-card: #ffffff;       /* cards */
+  --hrms-border: #e2e8f0;     /* borders */
+  --hrms-primary: #2563eb;    /* primary button / highlight */
+  --hrms-primary-soft: #eff6ff;
+  --hrms-text: #334155;       /* main text */
+  --hrms-muted: #64748b;      /* muted text */
+  --hrms-success: #16a34a;    /* totals / success */
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  background: var(--hrms-bg);
+  color: var(--hrms-text);
+}
+
+/* ❌ PAGE horizontal scroll band */
+html, body {
+  overflow-x: hidden;
+}
+
+/* ✅ NORMAL body layout (NO FLEX CENTER) */
+body {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #020617; /* slate-950 */
+  color: white;
+}
