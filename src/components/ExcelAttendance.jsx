@@ -16,7 +16,13 @@ export default function ExcelAttendance() {
     setAnalysts(prev =>
       prev.map(a =>
         a.id === id
-          ? { ...a, values: { ...a.values, [key]: Number(value) } }
+          ? {
+              ...a,
+              values: {
+                ...a.values,
+                [key]: value === "" ? "" : Number(value),
+              },
+            }
           : a
       )
     );
@@ -27,9 +33,7 @@ export default function ExcelAttendance() {
   ========================= */
   const updateAnalystName = (id, name) => {
     setAnalysts(prev =>
-      prev.map(a =>
-        a.id === id ? { ...a, name } : a
-      )
+      prev.map(a => (a.id === id ? { ...a, name } : a))
     );
   };
 
@@ -46,7 +50,6 @@ export default function ExcelAttendance() {
 
   /* =========================
      REGULAR + OVERTIME SPLIT
-     ❌ LIVE GROUP EXCLUDED
   ========================= */
   const splitRegularAndOvertime = values => {
     let remaining = DAILY_TARGET;
@@ -56,13 +59,13 @@ export default function ExcelAttendance() {
     gamesConfig.forEach(g =>
       g.items.forEach(i => {
         const key = `${g.group}-${i.label}`;
-        const count = values[key] || 0;
+        const count = Number(values[key] || 0);
         const hours = count * i.rate;
 
         regularCounts[key] = 0;
         overtimeCounts[key] = 0;
 
-        // 🚫 LIVE group never goes to overtime
+        // LIVE → never goes to OT
         if (g.group === EXCLUDED_OVERTIME_GROUP) {
           regularCounts[key] = count;
           return;
@@ -73,12 +76,12 @@ export default function ExcelAttendance() {
             regularCounts[key] = count;
             remaining -= hours;
           } else {
-            const regularCount = Number(
+            const regCount = Number(
               (remaining / i.rate).toFixed(2)
             );
-            regularCounts[key] = regularCount;
+            regularCounts[key] = regCount;
             overtimeCounts[key] = Number(
-              (count - regularCount).toFixed(2)
+              (count - regCount).toFixed(2)
             );
             remaining = 0;
           }
@@ -92,17 +95,17 @@ export default function ExcelAttendance() {
   };
 
   /* =========================
-     TOTAL HOURS CALC
+     HOURS CALC
   ========================= */
   const calcHoursFromCounts = counts => {
-    let t = 0;
+    let total = 0;
     gamesConfig.forEach(g =>
       g.items.forEach(i => {
         const key = `${g.group}-${i.label}`;
-        t += (counts[key] || 0) * i.rate;
+        total += (counts[key] || 0) * i.rate;
       })
     );
-    return t;
+    return total;
   };
 
   const grandTotal = analysts.reduce(
@@ -139,7 +142,7 @@ export default function ExcelAttendance() {
         </button>
       </div>
 
-      {/* ================= REGULAR TABLE ================= */}
+      {/* ================= REGULAR INPUT TABLE ================= */}
       <div className="overflow-x-auto">
         <table style={{ minWidth: "1500px" }} className="text-xs">
           <thead>
@@ -178,7 +181,7 @@ export default function ExcelAttendance() {
               )}
             </tr>
 
-            <tr className="text-[11px] text-[color:var(--hrms-muted)]">
+            <tr className="text-[11px] text-slate-500">
               {gamesConfig.map(g =>
                 g.items.map(i => (
                   <th
@@ -201,11 +204,7 @@ export default function ExcelAttendance() {
                 calcHoursFromCounts(regularCounts);
 
               return (
-                <tr
-                  key={a.id}
-                  className="border-t hover:bg-slate-50"
-                  style={{ borderColor: "var(--hrms-border)" }}
-                >
+                <tr key={a.id} className="border-t">
                   <td className="px-3 py-2">
                     <input
                       value={a.name}
@@ -213,9 +212,6 @@ export default function ExcelAttendance() {
                         updateAnalystName(a.id, e.target.value)
                       }
                       className="w-28 px-2 py-1 text-xs rounded border"
-                      style={{
-                        borderColor: "var(--hrms-border)",
-                      }}
                     />
                   </td>
 
@@ -223,20 +219,22 @@ export default function ExcelAttendance() {
                     g.items.map(i => {
                       const key = `${g.group}-${i.label}`;
                       return (
-                        <td
-                          key={key}
-                          className="px-2 py-2 text-center"
-                        >
-                          {regularCounts[key] || 0}
+                        <td key={key} className="px-2 py-2 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={a.values[key] ?? ""}
+                            onChange={e =>
+                              updateValue(a.id, key, e.target.value)
+                            }
+                            className="w-10 h-6 text-xs text-center rounded border"
+                          />
                         </td>
                       );
                     })
                   )}
 
-                  <td
-                    className="px-3 py-2 text-center font-semibold"
-                    style={{ color: "var(--hrms-success)" }}
-                  >
+                  <td className="px-3 py-2 text-center font-semibold">
                     {regularHours.toFixed(2)}
                   </td>
                 </tr>
@@ -246,40 +244,44 @@ export default function ExcelAttendance() {
         </table>
       </div>
 
-      {/* ================= OVERTIME TABLE (NO LIVE) ================= */}
-      <div
-        className="mt-8 border-t"
-        style={{ borderColor: "var(--hrms-border)" }}
-      >
+      {/* ================= OVERTIME TABLE (SAME STRUCTURE) ================= */}
+      <div className="mt-8 border-t">
         <div className="px-4 py-3 text-sm font-medium">
-          Overtime Breakdown (Excludes LIVE)
+          Overtime Breakdown
         </div>
 
         <div className="overflow-x-auto">
           <table style={{ minWidth: "1500px" }} className="text-xs">
             <thead style={{ background: "var(--hrms-primary-soft)" }}>
               <tr>
-                <th className="px-3 py-2 text-left">
-                  Analyst
-                </th>
+                <th className="px-3 py-2 text-left">Analyst</th>
 
-                {gamesConfig
-                  .filter(g => g.group !== EXCLUDED_OVERTIME_GROUP)
-                  .map(g =>
-                    g.items.map(i => (
-                      <th
-                        key={"ot-" + g.group + i.label}
-                        className="px-2 py-2 text-center border-l"
-                        style={{ borderColor: "var(--hrms-border)" }}
-                      >
-                        {i.label}
-                      </th>
-                    ))
-                  )}
+                {gamesConfig.map(g => (
+                  <th
+                    key={"ot-group-" + g.group}
+                    colSpan={g.items.length}
+                    className="px-3 py-2 text-center border-l"
+                  >
+                    {g.group}
+                  </th>
+                ))}
 
-                <th className="px-3 py-2 text-center">
-                  OT Hrs
-                </th>
+                <th className="px-3 py-2 text-center">OT Hrs</th>
+              </tr>
+
+              <tr>
+                <th></th>
+                {gamesConfig.map(g =>
+                  g.items.map(i => (
+                    <th
+                      key={"ot-" + g.group + i.label}
+                      className="px-2 py-1 text-center border-l"
+                    >
+                      {i.label}
+                    </th>
+                  ))
+                )}
+                <th></th>
               </tr>
             </thead>
 
@@ -291,37 +293,31 @@ export default function ExcelAttendance() {
                   calcHoursFromCounts(overtimeCounts);
 
                 return (
-                  <tr
-                    key={"ot-" + a.id}
-                    className="border-t"
-                    style={{ borderColor: "var(--hrms-border)" }}
-                  >
+                  <tr key={"ot-" + a.id} className="border-t">
                     <td className="px-3 py-2 font-medium">
                       {a.name}
                     </td>
 
-                    {gamesConfig
-                      .filter(
-                        g => g.group !== EXCLUDED_OVERTIME_GROUP
-                      )
-                      .map(g =>
-                        g.items.map(i => {
-                          const key = `${g.group}-${i.label}`;
-                          return (
-                            <td
-                              key={"ot-" + key}
-                              className="px-2 py-2 text-center"
-                            >
-                              {overtimeCounts[key] || 0}
-                            </td>
-                          );
-                        })
-                      )}
+                    {gamesConfig.map(g =>
+                      g.items.map(i => {
+                        const key = `${g.group}-${i.label}`;
+                        const value =
+                          g.group === EXCLUDED_OVERTIME_GROUP
+                            ? 0
+                            : overtimeCounts[key] || 0;
 
-                    <td
-                      className="px-3 py-2 text-center font-semibold"
-                      style={{ color: "var(--hrms-success)" }}
-                    >
+                        return (
+                          <td
+                            key={"ot-" + key}
+                            className="px-2 py-2 text-center"
+                          >
+                            {value}
+                          </td>
+                        );
+                      })
+                    )}
+
+                    <td className="px-3 py-2 text-center font-semibold">
                       {otHours.toFixed(2)}
                     </td>
                   </tr>
@@ -333,16 +329,10 @@ export default function ExcelAttendance() {
       </div>
 
       {/* FOOTER */}
-      <div
-        className="px-4 py-3 border-t text-right"
-        style={{ borderColor: "var(--hrms-border)" }}
-      >
+      <div className="px-4 py-3 border-t text-right">
         <span className="text-sm">
           Grand Total:
-          <span
-            className="ml-2 font-semibold"
-            style={{ color: "var(--hrms-success)" }}
-          >
+          <span className="ml-2 font-semibold">
             {grandTotal.toFixed(2)}
           </span>
         </span>
